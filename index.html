@@ -18,822 +18,779 @@
             justify-content: center;
             align-items: center;
             font-family: 'Segoe UI', 'Poppins', 'KaiTi', 'Microsoft YaHei', sans-serif;
-            padding: 8px;
+            padding: 0;  /* 去掉内边距 */
+            margin: 0;
             touch-action: manipulation;
         }
         .canvas-wrapper {
-            border-radius: 32px 32px 24px 24px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7), 0 0 0 2px #ffd966, 0 0 0 5px #b36b3c;
+            border-radius: 0;  /* 移除圆角，全屏展示 */
+            box-shadow: none;  /* 移除阴影 */
             background: #130b1c;
-            padding: 5px;
-            display: inline-block;
-            position: relative;
-            width: min(100%, 400px); /* 手机最大宽度限制 */
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100vw;
+            height: 100vh;  /* 全屏高度 */
+            overflow: hidden;  /* 隐藏溢出，防止滚动条 */
         }
         canvas {
             display: block;
-            width: 100%;
-            height: auto;
-            border-radius: 28px;
+            width: 100vw;
+            height: 100vh;  /* 全屏宽高 */
+            object-fit: contain;  /* 保持比例，不裁剪 */
             background: radial-gradient(circle at 30% 30%, #1e2a3a, #0c1420);
             cursor: pointer;
-            box-shadow: inset 0 0 40px #f5c54250;
-            margin: 0 auto;
             touch-action: manipulation;
         }
         .info {
-            text-align: center;
-            margin-top: 12px;
-            color: #ffecaa;
-            text-shadow: 0 2px 5px #ffa041;
-            font-size: 0.9rem;
-            padding: 0 10px;
-        }
-        .info span {
-            background: #ffe6b3aa;
-            padding: 4px 16px;
-            border-radius: 40px;
-            color: #2e2b1a;
-            font-weight: bold;
-            backdrop-filter: blur(2px);
-            box-shadow: 0 4px 10px #b36b3c;
-            display: inline-block;
+            display: none;  /* 隐藏底部文字，保持全屏纯净 */
         }
         .action-hint {
-            margin-top: 8px;
-            font-size: 0.85rem;
-            color: #ffd966;
-            padding: 0 10px;
-            text-align: center;
+            display: none;
         }
-        .action-hint i {
-            font-style: normal;
-            background: #ff8c42;
-            padding: 4px 12px;
-            border-radius: 30px;
-            color: white;
-            margin: 0 4px;
-            display: inline-block;
-        }
-        /* 音频控制按钮 - 手机友好大间距 */
+        /* 音频控制按钮 - 悬浮在画布上方 */
         .music-control {
-            margin-top: 16px;
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
             display: flex;
-            gap: 12px;
-            justify-content: center;
-            align-items: center;
-            flex-wrap: wrap;
-            padding: 0 10px;
+            gap: 10px;
+            z-index: 100;
+            pointer-events: none;  /* 让点击穿透到画布，但按钮本身可点 */
         }
         .music-btn {
             background: #ffd966;
             border: none;
             color: #2e2b1a;
-            font-size: 0.9rem;
-            padding: 10px 20px;
+            font-size: 0.8rem;
+            padding: 8px 16px;
             border-radius: 40px;
             font-weight: bold;
             cursor: pointer;
-            box-shadow: 0 4px 0 #b36b3c;
+            box-shadow: 0 4px 0 #b36b3c, 0 0 20px rgba(0,0,0,0.5);
             transition: all 0.1s ease;
             font-family: inherit;
-            min-width: 120px;
+            min-width: 100px;
             touch-action: manipulation;
             border: none;
             outline: none;
             -webkit-appearance: none;
+            pointer-events: auto;  /* 按钮本身可点击 */
+            backdrop-filter: blur(5px);
+            background: rgba(255, 217, 102, 0.9);
         }
         .music-btn:active {
             transform: translateY(4px);
-            box-shadow: none;
+            box-shadow: 0 0 0 #b36b3c, 0 0 20px rgba(0,0,0,0.5);
         }
         .music-btn.muted {
-            background: #aaa;
-            box-shadow: 0 4px 0 #666;
+            background: rgba(170, 170, 170, 0.9);
+            box-shadow: 0 4px 0 #666, 0 0 20px rgba(0,0,0,0.5);
         }
     </style>
 </head>
 <body>
-<div style="display: flex; flex-direction: column; align-items: center; width: 100%;">
     <div class="canvas-wrapper">
         <canvas id="birthdayCanvas" width="400" height="600"></canvas>
     </div>
-    <div class="info">
-        <span>🎂 给今天最耀眼的朋友 🎂</span>
-    </div>
-    <div class="action-hint">
-        ✨ 轻点画布 · 绽放烟花 ✨  <i>🎉</i>
-    </div>
+    
+    <!-- 悬浮音乐控制按钮 -->
     <div class="music-control">
         <button class="music-btn" id="playMusicBtn">🔊 播放生日歌</button>
         <button class="music-btn" id="toggleMusicBtn">🔇 静音</button>
     </div>
-</div>
 
-<script>
-    (function() {
-        const canvas = document.getElementById('birthdayCanvas');
-        const ctx = canvas.getContext('2d');
+    <script>
+        (function() {
+            const canvas = document.getElementById('birthdayCanvas');
+            const ctx = canvas.getContext('2d');
 
-        // 手机优化尺寸 (400x600 更适合竖屏)
-        const w = 400, h = 600;
+            // 手机优化尺寸 (400x600 更适合竖屏)
+            const w = 400, h = 600;
 
-        // ========== 逐句祝福词 ==========
-        const messages = [
-            "今天……\n看似和往日一样美好",
-            "但你会发现\n转眼之间，又一年悄然逝去",
-            "然而\n你知道吗……？",
-            "今天就是很特别\n对你而言，格外特别",
-            "所以\n让我们把今天\n变成最棒的庆祝",
-            "也让我为你\n送上一份小小的快乐",
-            "我做了这一切\n作为送给你的生日礼物",
-            "感谢你的陪伴\n感谢我们结下的友谊\n感谢所有的一切",
-            "最后……\n我想再一次对你说",
-            "生日快乐~",
-        ];
+            // ========== 逐句祝福词 ==========
+            const messages = [
+                "今天……\n看似和往日一样美好",
+                "但你会发现\n转眼之间，又一年悄然逝去",
+                "然而\n你知道吗……？",
+                "今天就是很特别\n对你而言，格外特别",
+                "所以\n让我们把今天\n变成最棒的庆祝",
+                "也让我为你\n送上一份小小的快乐",
+                "我做了这一切\n作为送给你的生日礼物",
+                "感谢你的陪伴\n感谢我们结下的友谊\n感谢所有的一切",
+                "最后……\n我想再一次对你说",
+                "生日快乐~ 🎂🎂🎂",  // 加了三个蛋糕图标
+            ];
 
-        // 程序状态: 'text' 文字展示阶段, 'cake' 蛋糕阶段
-        let state = 'text';
-        let currentMsgIndex = 0;
-        let textAlpha = 1.0;
-        let textFadeDirection = -0.008;     // 第一句直接开始淡出 (停留靠setTimeout)
-        let nextMsgTimer = 0;
+            // 程序状态
+            let state = 'text';
+            let currentMsgIndex = 0;
+            let textAlpha = 1.0;
+            let textFadeDirection = -0.008;
 
-        // 星星数组、闪光点、烟花粒子 (数量适当减少，手机性能更佳)
-        let stars = [];
-        let sparkles = [];
-        let particles = [];
+            // 星星、闪光点、烟花粒子
+            let stars = [];
+            let sparkles = [];
+            let particles = [];
 
-        // 文字呼吸动画 (蛋糕页用)
-        let msgScale = 1.0;
-        let msgScaleDirection = 0.005;
+            // 文字呼吸动画 (蛋糕页用)
+            let msgScale = 1.0;
+            let msgScaleDirection = 0.005;
 
-        // 点击火花
-        let clickSpark = null;
+            // 点击火花
+            let clickSpark = null;
 
-        // 鼠标/触摸追踪
-        let touchInside = false;
-        let touchX = 0, touchY = 0;
+            // 触摸追踪
+            let touchInside = false;
+            let touchX = 0, touchY = 0;
 
-        // 蛋糕弹跳
-        let cakeBounce = 0;
+            // 蛋糕弹跳
+            let cakeBounce = 0;
 
-        // ========== 背景音乐 ==========
-        let audioCtx = null;
-        let isMusicPlaying = false;
-        let isMuted = false;
-        let audioBuffer = null;
-        let gainNode = null;
-        let sourceNode = null;
+            // ========== 背景音乐 ==========
+            let audioCtx = null;
+            let isMusicPlaying = false;
+            let isMuted = false;
+            let audioBuffer = null;
+            let gainNode = null;
+            let sourceNode = null;
 
-        // 初始化 AudioContext (用户交互后启动)
-        function initAudio() {
-            if (audioCtx) return;
-            try {
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                gainNode = audioCtx.createGain();
-                gainNode.connect(audioCtx.destination);
-                gainNode.gain.value = isMuted ? 0 : 0.5;
+            // 初始化 AudioContext
+            function initAudio() {
+                if (audioCtx) return;
+                try {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    gainNode = audioCtx.createGain();
+                    gainNode.connect(audioCtx.destination);
+                    gainNode.gain.value = isMuted ? 0 : 0.5;
 
-                // 生成生日快乐旋律 (16秒循环)
-                const sampleRate = audioCtx.sampleRate;
-                const duration = 16;
-                const buffer = audioCtx.createBuffer(1, sampleRate * duration, sampleRate);
-                const channel = buffer.getChannelData(0);
+                    // 生成生日快乐旋律
+                    const sampleRate = audioCtx.sampleRate;
+                    const duration = 16;
+                    const buffer = audioCtx.createBuffer(1, sampleRate * duration, sampleRate);
+                    const channel = buffer.getChannelData(0);
 
-                // 生日快乐歌简谱 (频率和时长)
-                const notes = [
-                    { freq: 523.25, dur: 0.5 }, // 5
-                    { freq: 523.25, dur: 0.5 }, // 5
-                    { freq: 587.33, dur: 0.5 }, // 6
-                    { freq: 523.25, dur: 0.5 }, // 5
-                    { freq: 659.25, dur: 0.5 }, // 1'
-                    { freq: 587.33, dur: 1.0 }, // 7
-                    { freq: 523.25, dur: 0.5 },
-                    { freq: 523.25, dur: 0.5 },
-                    { freq: 587.33, dur: 0.5 },
-                    { freq: 523.25, dur: 0.5 },
-                    { freq: 698.46, dur: 0.5 }, // 2'
-                    { freq: 659.25, dur: 1.0 },
-                    { freq: 523.25, dur: 0.5 },
-                    { freq: 523.25, dur: 0.5 },
-                    { freq: 784.00, dur: 0.5 }, // 5'
-                    { freq: 659.25, dur: 0.5 }, // 3'
-                    { freq: 523.25, dur: 0.5 },
-                    { freq: 587.33, dur: 1.0 },
-                    { freq: 587.33, dur: 0.5 },
-                    { freq: 587.33, dur: 0.5 },
-                    { freq: 523.25, dur: 0.5 },
-                    { freq: 659.25, dur: 0.5 },
-                    { freq: 698.46, dur: 0.5 },
-                    { freq: 659.25, dur: 1.0 },
-                ];
+                    const notes = [
+                        { freq: 523.25, dur: 0.5 }, { freq: 523.25, dur: 0.5 },
+                        { freq: 587.33, dur: 0.5 }, { freq: 523.25, dur: 0.5 },
+                        { freq: 659.25, dur: 0.5 }, { freq: 587.33, dur: 1.0 },
+                        { freq: 523.25, dur: 0.5 }, { freq: 523.25, dur: 0.5 },
+                        { freq: 587.33, dur: 0.5 }, { freq: 523.25, dur: 0.5 },
+                        { freq: 698.46, dur: 0.5 }, { freq: 659.25, dur: 1.0 },
+                        { freq: 523.25, dur: 0.5 }, { freq: 523.25, dur: 0.5 },
+                        { freq: 784.00, dur: 0.5 }, { freq: 659.25, dur: 0.5 },
+                        { freq: 523.25, dur: 0.5 }, { freq: 587.33, dur: 1.0 },
+                        { freq: 587.33, dur: 0.5 }, { freq: 587.33, dur: 0.5 },
+                        { freq: 523.25, dur: 0.5 }, { freq: 659.25, dur: 0.5 },
+                        { freq: 698.46, dur: 0.5 }, { freq: 659.25, dur: 1.0 },
+                    ];
 
-                let pos = 0;
-                for (let n of notes) {
-                    let samples = Math.floor(sampleRate * n.dur);
-                    for (let i = 0; i < samples; i++) {
-                        if (pos + i >= channel.length) break;
-                        let t = i / sampleRate;
-                        let envelope = Math.exp(-t * 2);
-                        let val = Math.sin(2 * Math.PI * n.freq * t) > 0 ? 0.5 * envelope : -0.5 * envelope;
-                        channel[pos + i] = val;
+                    let pos = 0;
+                    for (let n of notes) {
+                        let samples = Math.floor(sampleRate * n.dur);
+                        for (let i = 0; i < samples; i++) {
+                            if (pos + i >= channel.length) break;
+                            let t = i / sampleRate;
+                            let envelope = Math.exp(-t * 2);
+                            let val = Math.sin(2 * Math.PI * n.freq * t) > 0 ? 0.5 * envelope : -0.5 * envelope;
+                            channel[pos + i] = val;
+                        }
+                        pos += samples;
                     }
-                    pos += samples;
-                }
 
-                audioBuffer = buffer;
-            } catch (e) {
-                console.warn("Web Audio 初始化失败", e);
-            }
-        }
-
-        function playMusic() {
-            if (!audioCtx) initAudio();
-            if (!audioCtx || !audioBuffer) return;
-
-            if (sourceNode) {
-                try { sourceNode.stop(); } catch (e) {}
-                sourceNode = null;
-            }
-
-            sourceNode = audioCtx.createBufferSource();
-            sourceNode.buffer = audioBuffer;
-            sourceNode.loop = true;
-            sourceNode.connect(gainNode);
-            sourceNode.start();
-            isMusicPlaying = true;
-            document.getElementById('playMusicBtn').textContent = '🔊 播放中';
-        }
-
-        function stopMusic() {
-            if (sourceNode) {
-                try { sourceNode.stop(); } catch (e) {}
-                sourceNode = null;
-            }
-            isMusicPlaying = false;
-            document.getElementById('playMusicBtn').textContent = '🔊 播放生日歌';
-        }
-
-        function toggleMute() {
-            if (!gainNode) return;
-            isMuted = !isMuted;
-            gainNode.gain.value = isMuted ? 0 : 0.5;
-            document.getElementById('toggleMusicBtn').textContent = isMuted ? '🔇 已静音' : '🔊 取消静音';
-        }
-
-        // 绑定音乐按钮 (手机友好)
-        document.getElementById('playMusicBtn').addEventListener('click', (e) => {
-            e.preventDefault();
-            if (isMusicPlaying) {
-                stopMusic();
-            } else {
-                playMusic();
-            }
-        });
-
-        document.getElementById('toggleMusicBtn').addEventListener('click', (e) => {
-            e.preventDefault();
-            toggleMute();
-        });
-
-        // ========== 初始化星星、闪光点 (数量减少，适应手机) ==========
-        function initStars(count = 150) {
-            for (let i = 0; i < count; i++) {
-                stars.push({
-                    x: Math.random() * w,
-                    y: Math.random() * h,
-                    radius: Math.random() * 2 + 1,
-                    brightness: Math.random() * 0.6 + 0.4,
-                    speed: 0.0005 + Math.random() * 0.002,
-                    angleOffset: Math.random() * 2 * Math.PI,
-                    baseX: (Math.random() * 2 - 1) * 0.8,
-                    baseY: (Math.random() * 2 - 1) * 0.8,
-                    dist: Math.random() * 0.6 + 0.4
-                });
-                const star = stars[stars.length-1];
-                star.x = w/2 + star.baseX * 180; // 适配400宽
-                star.y = h/2 + star.baseY * 250;
-            }
-        }
-
-        function initSparkles(count = 20) {
-            for (let i = 0; i < count; i++) {
-                sparkles.push({
-                    x: Math.random() * w,
-                    y: Math.random() * h,
-                    size: 4 + Math.random() * 15,
-                    speedX: (Math.random() - 0.5) * 0.3,
-                    speedY: (Math.random() - 0.5) * 0.2,
-                    phase: Math.random() * 2 * Math.PI,
-                    color: `hsl(${30 + Math.random()*30}, 85%, 70%)`,
-                });
-            }
-        }
-
-        // 添加烟花 (数量也适当减少)
-        function addFirework(centerX, centerY) {
-            const count = 20 + Math.floor(Math.random() * 20);
-            for (let i = 0; i < count; i++) {
-                const angle = Math.random() * 2 * Math.PI;
-                const speed = 1.2 + Math.random() * 4;
-                const vx = Math.cos(angle) * speed;
-                const vy = Math.sin(angle) * speed - 1.0;
-                const life = 0.6 + Math.random() * 0.8;
-                const hue = Math.random() * 360;
-                const color = `hsl(${hue}, 85%, 65%)`;
-                particles.push({
-                    x: centerX + (Math.random() - 0.5) * 15,
-                    y: centerY + (Math.random() - 0.5) * 15,
-                    vx: vx,
-                    vy: vy,
-                    size: 3 + Math.random() * 7,
-                    color: color,
-                    life: life,
-                    maxLife: life,
-                });
-            }
-        }
-
-        // 更新粒子
-        function updateParticles() {
-            for (let i = particles.length - 1; i >= 0; i--) {
-                const p = particles[i];
-                p.x += p.vx;
-                p.y += p.vy;
-                p.vy += 0.07;
-                p.life -= 0.01;
-                p.size *= 0.998;
-                if (p.life <= 0 || p.y > h + 70 || p.x < -70 || p.x > w + 70) {
-                    particles.splice(i, 1);
+                    audioBuffer = buffer;
+                } catch (e) {
+                    console.warn("Web Audio 初始化失败", e);
                 }
             }
-        }
 
-        // 星星旋转
-        function updateStarsRotation() {
-            const rotationAngle = Date.now() * 0.0006;
-            stars.forEach(star => {
-                const angle = Math.atan2(star.baseY, star.baseX) + rotationAngle * star.speed * 300;
-                const rad = star.dist;
-                star.x = w/2 + Math.cos(angle) * rad * 180;
-                star.y = h/2 + Math.sin(angle) * rad * 250;
+            function playMusic() {
+                if (!audioCtx) initAudio();
+                if (!audioCtx || !audioBuffer) return;
+
+                if (sourceNode) {
+                    try { sourceNode.stop(); } catch (e) {}
+                    sourceNode = null;
+                }
+
+                sourceNode = audioCtx.createBufferSource();
+                sourceNode.buffer = audioBuffer;
+                sourceNode.loop = true;
+                sourceNode.connect(gainNode);
+                sourceNode.start();
+                isMusicPlaying = true;
+                document.getElementById('playMusicBtn').textContent = '🔊 播放中';
+            }
+
+            function stopMusic() {
+                if (sourceNode) {
+                    try { sourceNode.stop(); } catch (e) {}
+                    sourceNode = null;
+                }
+                isMusicPlaying = false;
+                document.getElementById('playMusicBtn').textContent = '🔊 播放生日歌';
+            }
+
+            function toggleMute() {
+                if (!gainNode) return;
+                isMuted = !isMuted;
+                gainNode.gain.value = isMuted ? 0 : 0.5;
+                document.getElementById('toggleMusicBtn').textContent = isMuted ? '🔇 已静音' : '🔊 取消静音';
+            }
+
+            // 绑定音乐按钮
+            document.getElementById('playMusicBtn').addEventListener('click', (e) => {
+                e.preventDefault();
+                if (isMusicPlaying) {
+                    stopMusic();
+                } else {
+                    playMusic();
+                }
             });
-        }
 
-        // 更新闪光点
-        function updateSparkles() {
-            sparkles.forEach(s => {
-                s.x += s.speedX;
-                s.y += s.speedY;
-                if (s.x > w + 50) s.x = -50;
-                else if (s.x < -50) s.x = w + 50;
-                if (s.y > h + 50) s.y = -50;
-                else if (s.y < -50) s.y = h + 50;
-                s.phase += 0.01;
+            document.getElementById('toggleMusicBtn').addEventListener('click', (e) => {
+                e.preventDefault();
+                toggleMute();
             });
-        }
 
-        // 蛋糕弹跳
-        function updateCake() {
-            cakeBounce = Math.sin(Date.now() * 0.006) * 0.3;
-        }
-
-        // ========== 绘制立体三层蛋糕 (适配400宽) ==========
-        function drawCake() {
-            const cx = w/2;
-            const baseY = h/2 + 40 + cakeBounce * 3; // 调整位置
-
-            ctx.shadowColor = '#6b3f1f';
-            ctx.shadowBlur = 20;
-            ctx.shadowOffsetY = 5;
-
-            // 底层 (比例缩小)
-            ctx.fillStyle = '#c79a6e';
-            ctx.beginPath();
-            ctx.ellipse(cx, baseY - 15, 110, 35, 0, 0, Math.PI * 2);
-            ctx.fill();
-
-            ctx.fillStyle = '#f8eedb';
-            ctx.shadowOffsetY = 4;
-            ctx.beginPath();
-            ctx.ellipse(cx, baseY - 22, 112, 32, 0, 0, Math.PI * 2);
-            ctx.fill();
-
-            ctx.fillStyle = '#fff5e6';
-            ctx.shadowOffsetY = 3;
-            for (let i = 0; i < 6; i++) {
-                let offsetX = -70 + i * 28;
-                ctx.beginPath();
-                ctx.ellipse(cx + offsetX, baseY - 5, 14, 9, 0, 0, Math.PI * 2);
-                ctx.fill();
+            // ========== 初始化星星、闪光点 ==========
+            function initStars(count = 150) {
+                for (let i = 0; i < count; i++) {
+                    stars.push({
+                        x: Math.random() * w,
+                        y: Math.random() * h,
+                        radius: Math.random() * 2 + 1,
+                        brightness: Math.random() * 0.6 + 0.4,
+                        speed: 0.0005 + Math.random() * 0.002,
+                        angleOffset: Math.random() * 2 * Math.PI,
+                        baseX: (Math.random() * 2 - 1) * 0.8,
+                        baseY: (Math.random() * 2 - 1) * 0.8,
+                        dist: Math.random() * 0.6 + 0.4
+                    });
+                    const star = stars[stars.length-1];
+                    star.x = w/2 + star.baseX * 180;
+                    star.y = h/2 + star.baseY * 250;
+                }
             }
 
-            // 中层
-            ctx.fillStyle = '#b3875a';
-            ctx.shadowOffsetY = 5;
-            ctx.beginPath();
-            ctx.ellipse(cx, baseY - 60, 85, 28, 0, 0, Math.PI * 2);
-            ctx.fill();
-
-            ctx.fillStyle = '#f8eedb';
-            ctx.shadowOffsetY = 3;
-            ctx.beginPath();
-            ctx.ellipse(cx, baseY - 65, 87, 25, 0, 0, Math.PI * 2);
-            ctx.fill();
-
-            ctx.fillStyle = '#fff5e6';
-            for (let i = 0; i < 5; i++) {
-                let offsetX = -45 + i * 22;
-                ctx.beginPath();
-                ctx.ellipse(cx + offsetX, baseY - 45, 12, 7, 0, 0, Math.PI * 2);
-                ctx.fill();
+            function initSparkles(count = 20) {
+                for (let i = 0; i < count; i++) {
+                    sparkles.push({
+                        x: Math.random() * w,
+                        y: Math.random() * h,
+                        size: 4 + Math.random() * 15,
+                        speedX: (Math.random() - 0.5) * 0.3,
+                        speedY: (Math.random() - 0.5) * 0.2,
+                        phase: Math.random() * 2 * Math.PI,
+                        color: `hsl(${30 + Math.random()*30}, 85%, 70%)`,
+                    });
+                }
             }
 
-            // 顶层
-            ctx.fillStyle = '#a87b4e';
-            ctx.shadowOffsetY = 4;
-            ctx.beginPath();
-            ctx.ellipse(cx, baseY - 100, 65, 22, 0, 0, Math.PI * 2);
-            ctx.fill();
-
-            ctx.fillStyle = '#fdf3e0';
-            ctx.shadowOffsetY = 2;
-            ctx.beginPath();
-            ctx.ellipse(cx, baseY - 104, 67, 20, 0, 0, Math.PI * 2);
-            ctx.fill();
-
-            ctx.fillStyle = '#ffffff';
-            for (let i = 0; i < 4; i++) {
-                let angle = (i / 4) * Math.PI * 2;
-                let xOff = Math.cos(angle) * 28;
-                let yOff = Math.sin(angle) * 10 - 104;
-                ctx.beginPath();
-                ctx.arc(cx + xOff, baseY + yOff, 7, 0, Math.PI * 2);
-                ctx.fill();
+            // 添加烟花
+            function addFirework(centerX, centerY) {
+                const count = 20 + Math.floor(Math.random() * 20);
+                for (let i = 0; i < count; i++) {
+                    const angle = Math.random() * 2 * Math.PI;
+                    const speed = 1.2 + Math.random() * 4;
+                    const vx = Math.cos(angle) * speed;
+                    const vy = Math.sin(angle) * speed - 1.0;
+                    const life = 0.6 + Math.random() * 0.8;
+                    const hue = Math.random() * 360;
+                    const color = `hsl(${hue}, 85%, 65%)`;
+                    particles.push({
+                        x: centerX + (Math.random() - 0.5) * 15,
+                        y: centerY + (Math.random() - 0.5) * 15,
+                        vx: vx,
+                        vy: vy,
+                        size: 3 + Math.random() * 7,
+                        color: color,
+                        life: life,
+                        maxLife: life,
+                    });
+                }
             }
 
-            // 蜡烛 (5根细蜡烛)
-            ctx.shadowOffsetY = 3;
-            ctx.shadowBlur = 15;
-            const candleCount = 5;
-            for (let i = 0; i < candleCount; i++) {
-                const angle = (i / candleCount) * Math.PI * 2;
-                const radius = 32;
-                const candleX = cx + Math.cos(angle) * radius;
-                const candleY = baseY - 122 + Math.sin(angle) * 6;
+            // 更新粒子
+            function updateParticles() {
+                for (let i = particles.length - 1; i >= 0; i--) {
+                    const p = particles[i];
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.vy += 0.07;
+                    p.life -= 0.01;
+                    p.size *= 0.998;
+                    if (p.life <= 0 || p.y > h + 70 || p.x < -70 || p.x > w + 70) {
+                        particles.splice(i, 1);
+                    }
+                }
+            }
 
-                ctx.fillStyle = '#ffb77c';
+            // 星星旋转
+            function updateStarsRotation() {
+                const rotationAngle = Date.now() * 0.0006;
+                stars.forEach(star => {
+                    const angle = Math.atan2(star.baseY, star.baseX) + rotationAngle * star.speed * 300;
+                    const rad = star.dist;
+                    star.x = w/2 + Math.cos(angle) * rad * 180;
+                    star.y = h/2 + Math.sin(angle) * rad * 250;
+                });
+            }
+
+            // 更新闪光点
+            function updateSparkles() {
+                sparkles.forEach(s => {
+                    s.x += s.speedX;
+                    s.y += s.speedY;
+                    if (s.x > w + 50) s.x = -50;
+                    else if (s.x < -50) s.x = w + 50;
+                    if (s.y > h + 50) s.y = -50;
+                    else if (s.y < -50) s.y = h + 50;
+                    s.phase += 0.01;
+                });
+            }
+
+            // 蛋糕弹跳
+            function updateCake() {
+                cakeBounce = Math.sin(Date.now() * 0.006) * 0.3;
+            }
+
+            // ========== 绘制立体三层蛋糕 ==========
+            function drawCake() {
+                const cx = w/2;
+                const baseY = h/2 + 40 + cakeBounce * 3;
+
+                ctx.shadowColor = '#6b3f1f';
+                ctx.shadowBlur = 20;
+                ctx.shadowOffsetY = 5;
+
+                // 底层
+                ctx.fillStyle = '#c79a6e';
                 ctx.beginPath();
-                ctx.rect(candleX - 2.5, candleY - 28, 5, 24);
+                ctx.ellipse(cx, baseY - 15, 110, 35, 0, 0, Math.PI * 2);
                 ctx.fill();
 
+                ctx.fillStyle = '#f8eedb';
+                ctx.shadowOffsetY = 4;
+                ctx.beginPath();
+                ctx.ellipse(cx, baseY - 22, 112, 32, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#fff5e6';
+                ctx.shadowOffsetY = 3;
+                for (let i = 0; i < 6; i++) {
+                    let offsetX = -70 + i * 28;
+                    ctx.beginPath();
+                    ctx.ellipse(cx + offsetX, baseY - 5, 14, 9, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                // 中层
+                ctx.fillStyle = '#b3875a';
+                ctx.shadowOffsetY = 5;
+                ctx.beginPath();
+                ctx.ellipse(cx, baseY - 60, 85, 28, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#f8eedb';
+                ctx.shadowOffsetY = 3;
+                ctx.beginPath();
+                ctx.ellipse(cx, baseY - 65, 87, 25, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#fff5e6';
+                for (let i = 0; i < 5; i++) {
+                    let offsetX = -45 + i * 22;
+                    ctx.beginPath();
+                    ctx.ellipse(cx + offsetX, baseY - 45, 12, 7, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                // 顶层
+                ctx.fillStyle = '#a87b4e';
+                ctx.shadowOffsetY = 4;
+                ctx.beginPath();
+                ctx.ellipse(cx, baseY - 100, 65, 22, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#fdf3e0';
+                ctx.shadowOffsetY = 2;
+                ctx.beginPath();
+                ctx.ellipse(cx, baseY - 104, 67, 20, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#ffffff';
+                for (let i = 0; i < 4; i++) {
+                    let angle = (i / 4) * Math.PI * 2;
+                    let xOff = Math.cos(angle) * 28;
+                    let yOff = Math.sin(angle) * 10 - 104;
+                    ctx.beginPath();
+                    ctx.arc(cx + xOff, baseY + yOff, 7, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                // 蜡烛 (5根细蜡烛)
+                ctx.shadowOffsetY = 3;
+                ctx.shadowBlur = 15;
+                const candleCount = 5;
+                for (let i = 0; i < candleCount; i++) {
+                    const angle = (i / candleCount) * Math.PI * 2;
+                    const radius = 32;
+                    const candleX = cx + Math.cos(angle) * radius;
+                    const candleY = baseY - 122 + Math.sin(angle) * 6;
+
+                    ctx.fillStyle = '#ffb77c';
+                    ctx.beginPath();
+                    ctx.rect(candleX - 2.5, candleY - 28, 5, 24);
+                    ctx.fill();
+
+                    ctx.strokeStyle = '#3a2a1a';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(candleX, candleY - 28);
+                    ctx.lineTo(candleX, candleY - 34);
+                    ctx.stroke();
+
+                    const flicker = Math.sin(Date.now() * 0.02 + i * 10) * 0.2 + 0.9;
+                    const flameHeight = 11 * flicker;
+                    ctx.shadowColor = '#ff8c00';
+                    ctx.shadowBlur = 20;
+                    ctx.fillStyle = '#ffb347';
+                    ctx.beginPath();
+                    ctx.moveTo(candleX - 3, candleY - 34);
+                    ctx.lineTo(candleX + 3, candleY - 34);
+                    ctx.lineTo(candleX, candleY - 34 - flameHeight);
+                    ctx.closePath();
+                    ctx.fill();
+
+                    ctx.fillStyle = '#ffffb0';
+                    ctx.shadowBlur = 18;
+                    ctx.beginPath();
+                    ctx.arc(candleX, candleY - 40, 2.5, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                // 中央蜡烛
+                ctx.fillStyle = '#ffaa88';
+                ctx.shadowBlur = 18;
+                ctx.beginPath();
+                ctx.rect(cx - 3, baseY - 140, 6, 24);
+                ctx.fill();
                 ctx.strokeStyle = '#3a2a1a';
                 ctx.lineWidth = 1;
                 ctx.beginPath();
-                ctx.moveTo(candleX, candleY - 28);
-                ctx.lineTo(candleX, candleY - 34);
+                ctx.moveTo(cx, baseY - 140);
+                ctx.lineTo(cx, baseY - 148);
                 ctx.stroke();
-
-                const flicker = Math.sin(Date.now() * 0.02 + i * 10) * 0.2 + 0.9;
-                const flameHeight = 11 * flicker;
-                ctx.shadowColor = '#ff8c00';
-                ctx.shadowBlur = 20;
-                ctx.fillStyle = '#ffb347';
+                ctx.fillStyle = '#ffaa33';
+                ctx.shadowBlur = 25;
                 ctx.beginPath();
-                ctx.moveTo(candleX - 3, candleY - 34);
-                ctx.lineTo(candleX + 3, candleY - 34);
-                ctx.lineTo(candleX, candleY - 34 - flameHeight);
+                ctx.moveTo(cx - 3, baseY - 148);
+                ctx.lineTo(cx + 3, baseY - 148);
+                ctx.lineTo(cx, baseY - 160);
                 ctx.closePath();
                 ctx.fill();
-
-                ctx.fillStyle = '#ffffb0';
-                ctx.shadowBlur = 18;
+                ctx.fillStyle = '#fffde7';
                 ctx.beginPath();
-                ctx.arc(candleX, candleY - 40, 2.5, 0, Math.PI * 2);
+                ctx.arc(cx, baseY - 162, 4, 0, Math.PI * 2);
                 ctx.fill();
-            }
 
-            // 中央蜡烛
-            ctx.fillStyle = '#ffaa88';
-            ctx.shadowBlur = 18;
-            ctx.beginPath();
-            ctx.rect(cx - 3, baseY - 140, 6, 24);
-            ctx.fill();
-            ctx.strokeStyle = '#3a2a1a';
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(cx, baseY - 140);
-            ctx.lineTo(cx, baseY - 148);
-            ctx.stroke();
-            ctx.fillStyle = '#ffaa33';
-            ctx.shadowBlur = 25;
-            ctx.beginPath();
-            ctx.moveTo(cx - 3, baseY - 148);
-            ctx.lineTo(cx + 3, baseY - 148);
-            ctx.lineTo(cx, baseY - 160);
-            ctx.closePath();
-            ctx.fill();
-            ctx.fillStyle = '#fffde7';
-            ctx.beginPath();
-            ctx.arc(cx, baseY - 162, 4, 0, Math.PI * 2);
-            ctx.fill();
-
-            // 糖粒
-            ctx.shadowBlur = 8;
-            for (let i = 0; i < 20; i++) {
-                let x = cx - 80 + Math.random() * 160;
-                let y = baseY - 120 + Math.random() * 100;
-                ctx.fillStyle = `hsl(${Math.random() * 360}, 90%, 70%)`;
-                ctx.beginPath();
-                ctx.arc(x, y, 1.5 + Math.random() * 3, 0, Math.PI * 2);
-                ctx.fill();
-            }
-
-            ctx.shadowBlur = 0;
-            ctx.shadowOffsetY = 0;
-        }
-
-        // ========== 绘制场景 ==========
-        function drawScene() {
-            ctx.clearRect(0, 0, w, h);
-
-            // 背景渐变
-            const grad = ctx.createRadialGradient(100, 200, 50, 200, 300, 500);
-            grad.addColorStop(0, '#13212e');
-            grad.addColorStop(0.7, '#1a1f2c');
-            grad.addColorStop(1, '#0c0f17');
-            ctx.fillStyle = grad;
-            ctx.fillRect(0, 0, w, h);
-
-            // 星星和闪光点
-            stars.forEach(star => {
-                const flicker = Math.sin(Date.now() * 0.005 + star.angleOffset) * 0.25 + 0.75;
-                ctx.fillStyle = `rgba(255, 255, 210, ${star.brightness * flicker})`;
-                ctx.beginPath();
-                ctx.arc(star.x, star.y, star.radius * flicker, 0, 2*Math.PI);
-                ctx.fill();
-            });
-
-            sparkles.forEach(s => {
-                ctx.save();
-                ctx.shadowBlur = 15;
-                ctx.shadowColor = '#ffbb66';
-                ctx.globalAlpha = 0.5 + 0.2 * Math.sin(s.phase);
-                ctx.fillStyle = s.color;
-                ctx.beginPath();
-                for (let i = 0; i < 4; i++) {
-                    const angle = i * Math.PI/2 + s.phase * 0.2;
-                    const dx = Math.cos(angle) * s.size;
-                    const dy = Math.sin(angle) * s.size;
-                    if (i === 0) ctx.moveTo(s.x + dx, s.y + dy);
-                    else ctx.lineTo(s.x + dx, s.y + dy);
+                // 糖粒
+                ctx.shadowBlur = 8;
+                for (let i = 0; i < 20; i++) {
+                    let x = cx - 80 + Math.random() * 160;
+                    let y = baseY - 120 + Math.random() * 100;
+                    ctx.fillStyle = `hsl(${Math.random() * 360}, 90%, 70%)`;
+                    ctx.beginPath();
+                    ctx.arc(x, y, 1.5 + Math.random() * 3, 0, Math.PI * 2);
+                    ctx.fill();
                 }
-                ctx.closePath();
-                ctx.fill();
-                ctx.restore();
-            });
 
-            if (state === 'text') {
-                // 文字阶段：半透明遮罩
-                ctx.fillStyle = 'rgba(0,0,0,0.6)';
+                ctx.shadowBlur = 0;
+                ctx.shadowOffsetY = 0;
+            }
+
+            // ========== 绘制场景 ==========
+            function drawScene() {
+                ctx.clearRect(0, 0, w, h);
+
+                // 背景渐变
+                const grad = ctx.createRadialGradient(100, 200, 50, 200, 300, 500);
+                grad.addColorStop(0, '#13212e');
+                grad.addColorStop(0.7, '#1a1f2c');
+                grad.addColorStop(1, '#0c0f17');
+                ctx.fillStyle = grad;
                 ctx.fillRect(0, 0, w, h);
 
-                // 绘制当前文字
-                ctx.save();
-                ctx.shadowColor = '#ffaa33';
-                ctx.shadowBlur = 25;
-                ctx.shadowOffsetY = 4;
-                ctx.font = 'bold 28px "Segoe UI", "Poppins", "KaiTi", "Microsoft YaHei", sans-serif';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillStyle = '#fff9e6';
-                ctx.globalAlpha = textAlpha;
-
-                const lines = messages[currentMsgIndex].split('\n');
-                const lineHeight = 45;
-                const startY = h/2 - (lines.length-1) * lineHeight/2;
-                lines.forEach((line, idx) => {
-                    ctx.fillText(line, w/2, startY + idx * lineHeight);
-                });
-                ctx.restore();
-
-                // 更新文字淡入淡出
-                if (textFadeDirection < 0) { // 淡出中
-                    textAlpha += textFadeDirection;
-                    if (textAlpha <= 0) {
-                        textAlpha = 0;
-                        if (currentMsgIndex < messages.length - 1) {
-                            currentMsgIndex++;
-                            textFadeDirection = 0.01; // 淡入
-                        } else {
-                            state = 'cake';
-                        }
-                    }
-                } else if (textFadeDirection > 0) { // 淡入中
-                    textAlpha += textFadeDirection;
-                    if (textAlpha >= 1) {
-                        textAlpha = 1;
-                        textFadeDirection = -0.008; // 准备淡出
-                        setTimeout(() => {
-                            if (state === 'text' && textFadeDirection === -0.008 && textAlpha === 1) {
-                                textFadeDirection = -0.008;
-                            }
-                        }, 2000);
-                    }
-                }
-            } else {
-                // 蛋糕页
-                drawCake();
-
-                // 祝福文字
-                ctx.save();
-                ctx.shadowColor = '#ffaa33';
-                ctx.shadowBlur = 25;
-                ctx.shadowOffsetY = 4;
-                ctx.font = 'bold 32px "Segoe UI", "Poppins", sans-serif';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillStyle = '#ffeac2';
-                ctx.globalAlpha = 0.9;
-                msgScale += msgScaleDirection;
-                if (msgScale > 1.07 || msgScale < 0.97) msgScaleDirection *= -1;
-                ctx.translate(w/2, h/2 - 130);
-                ctx.scale(msgScale, msgScale);
-                ctx.fillText('HAPPY', 0, -20);
-                ctx.fillText('BIRTHDAY', 0, 20);
-                ctx.restore();
-
-                // to my friend
-                ctx.save();
-                ctx.shadowBlur = 12;
-                ctx.shadowColor = '#f2a65e';
-                ctx.font = 'italic 20px "Segoe UI", "Poppins", cursive';
-                ctx.fillStyle = '#ffdb9f';
-                ctx.textAlign = 'center';
-                ctx.fillText('to my friend', w/2, h/2 + 60);
-                ctx.restore();
-
-                // 烟花粒子
-                particles.forEach(p => {
-                    ctx.globalAlpha = p.life * 0.9;
+                // 星星和闪光点
+                stars.forEach(star => {
+                    const flicker = Math.sin(Date.now() * 0.005 + star.angleOffset) * 0.25 + 0.75;
+                    ctx.fillStyle = `rgba(255, 255, 210, ${star.brightness * flicker})`;
                     ctx.beginPath();
-                    ctx.fillStyle = p.color;
-                    ctx.shadowColor = p.color;
-                    ctx.shadowBlur = 12;
-                    ctx.arc(p.x, p.y, p.size * 0.6, 0, 2*Math.PI);
+                    ctx.arc(star.x, star.y, star.radius * flicker, 0, 2*Math.PI);
                     ctx.fill();
                 });
 
-                // 点击火花
-                if (clickSpark) {
-                    const age = Date.now() - clickSpark.time;
-                    if (age < 400) {
-                        ctx.save();
-                        ctx.shadowBlur = 40;
-                        ctx.shadowColor = '#ffaa33';
-                        ctx.beginPath();
-                        ctx.arc(clickSpark.x, clickSpark.y, 25 + (400-age)/12, 0, 2*Math.PI);
-                        ctx.fillStyle = '#ffd58c99';
-                        ctx.fill();
-                        ctx.restore();
-                    } else {
-                        clickSpark = null;
-                    }
-                }
-
-                // 触摸跟随 (手机)
-                if (touchInside) {
+                sparkles.forEach(s => {
                     ctx.save();
-                    ctx.shadowBlur = 18;
-                    ctx.shadowColor = '#ffaa33';
-                    ctx.fillStyle = '#f5e56b';
-                    ctx.translate(touchX, touchY);
-                    ctx.rotate(Date.now() * 0.01);
+                    ctx.shadowBlur = 15;
+                    ctx.shadowColor = '#ffbb66';
+                    ctx.globalAlpha = 0.5 + 0.2 * Math.sin(s.phase);
+                    ctx.fillStyle = s.color;
+                    ctx.beginPath();
                     for (let i = 0; i < 4; i++) {
-                        const angle = i * Math.PI/2;
-                        const dx = Math.cos(angle) * 14;
-                        const dy = Math.sin(angle) * 14;
-                        if (i === 0) ctx.moveTo(dx, dy);
-                        else ctx.lineTo(dx, dy);
+                        const angle = i * Math.PI/2 + s.phase * 0.2;
+                        const dx = Math.cos(angle) * s.size;
+                        const dy = Math.sin(angle) * s.size;
+                        if (i === 0) ctx.moveTo(s.x + dx, s.y + dy);
+                        else ctx.lineTo(s.x + dx, s.y + dy);
                     }
                     ctx.closePath();
                     ctx.fill();
                     ctx.restore();
-                }
-            }
+                });
 
-            ctx.shadowBlur = 0;
-            requestAnimationFrame(animate);
-        }
+                if (state === 'text') {
+                    // 文字阶段：半透明遮罩
+                    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+                    ctx.fillRect(0, 0, w, h);
 
-        // 动画循环
-        function animate() {
-            updateStarsRotation();
-            updateSparkles();
-            if (state === 'cake') {
-                updateParticles();
-                updateCake();
-            }
-            drawScene();
-        }
+                    // 绘制当前文字
+                    ctx.save();
+                    ctx.shadowColor = '#ffaa33';
+                    ctx.shadowBlur = 25;
+                    ctx.shadowOffsetY = 4;
+                    ctx.font = 'bold 28px "Segoe UI", "Poppins", "KaiTi", "Microsoft YaHei", sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillStyle = '#fff9e6';
+                    ctx.globalAlpha = textAlpha;
 
-        // 触摸事件 (取代鼠标事件)
-        function handleTouchStart(e) {
-            e.preventDefault();
-            const rect = canvas.getBoundingClientRect();
-            const touch = e.touches[0];
-            const scaleX = canvas.width / rect.width;
-            const scaleY = canvas.height / rect.height;
-            touchX = (touch.clientX - rect.left) * scaleX;
-            touchY = (touch.clientY - rect.top) * scaleY;
-            touchInside = true;
-        }
+                    const lines = messages[currentMsgIndex].split('\n');
+                    const lineHeight = 45;
+                    const startY = h/2 - (lines.length-1) * lineHeight/2;
+                    lines.forEach((line, idx) => {
+                        ctx.fillText(line, w/2, startY + idx * lineHeight);
+                    });
+                    ctx.restore();
 
-        function handleTouchMove(e) {
-            e.preventDefault();
-            const rect = canvas.getBoundingClientRect();
-            const touch = e.touches[0];
-            const scaleX = canvas.width / rect.width;
-            const scaleY = canvas.height / rect.height;
-            touchX = (touch.clientX - rect.left) * scaleX;
-            touchY = (touch.clientY - rect.top) * scaleY;
-        }
-
-        function handleTouchEnd(e) {
-            e.preventDefault();
-            touchInside = false;
-        }
-
-        function handleCanvasClick(e) {
-            e.preventDefault();
-            if (state !== 'cake') return;
-
-            const rect = canvas.getBoundingClientRect();
-            let clientX, clientY;
-            if (e.touches) {
-                clientX = e.touches[0].clientX;
-                clientY = e.touches[0].clientY;
-            } else {
-                clientX = e.clientX;
-                clientY = e.clientY;
-            }
-            const scaleX = canvas.width / rect.width;
-            const scaleY = canvas.height / rect.height;
-            const canvasX = (clientX - rect.left) * scaleX;
-            const canvasY = (clientY - rect.top) * scaleY;
-
-            for (let i = 0; i < 4; i++) {
-                setTimeout(() => {
-                    addFirework(canvasX + (Math.random()-0.5)*50, canvasY + (Math.random()-0.5)*50);
-                }, i * 50);
-            }
-            clickSpark = { x: canvasX, y: canvasY, time: Date.now() };
-        }
-
-        // 统一事件监听 (手机和PC)
-        canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
-        canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
-        canvas.addEventListener('touchend', handleTouchEnd);
-        canvas.addEventListener('touchcancel', handleTouchEnd);
-        canvas.addEventListener('mousedown', (e) => {
-            touchInside = true;
-            handleTouchMove(e); // 复用
-        });
-        canvas.addEventListener('mousemove', handleTouchMove);
-        canvas.addEventListener('mouseup', () => { touchInside = false; });
-        canvas.addEventListener('mouseleave', () => { touchInside = false; });
-        canvas.addEventListener('click', handleCanvasClick);
-        canvas.addEventListener('touchstart', handleCanvasClick); // 同时支持触摸点击
-
-        // 初始化
-        function init() {
-            initStars(120);
-            initSparkles(15);
-        }
-
-        // 切换到蛋糕页时放开场烟花
-        let oldState = state;
-        setInterval(() => {
-            if (oldState !== state) {
-                if (state === 'cake') {
-                    for (let i = 0; i < 6; i++) {
-                        setTimeout(() => {
-                            addFirework(100 + i*40, 200);
-                        }, i * 80);
+                    // 更新文字淡入淡出
+                    if (textFadeDirection < 0) {
+                        textAlpha += textFadeDirection;
+                        if (textAlpha <= 0) {
+                            textAlpha = 0;
+                            if (currentMsgIndex < messages.length - 1) {
+                                currentMsgIndex++;
+                                textFadeDirection = 0.01;
+                            } else {
+                                state = 'cake';
+                            }
+                        }
+                    } else if (textFadeDirection > 0) {
+                        textAlpha += textFadeDirection;
+                        if (textAlpha >= 1) {
+                            textAlpha = 1;
+                            textFadeDirection = -0.008;
+                            setTimeout(() => {
+                                if (state === 'text' && textFadeDirection === -0.008 && textAlpha === 1) {
+                                    textFadeDirection = -0.008;
+                                }
+                            }, 2000);
+                        }
                     }
-                    setTimeout(() => {
-                        addFirework(w/2, h/3);
-                    }, 400);
+                } else {
+                    // 蛋糕页
+                    drawCake();
+
+                    // 祝福文字 - 向上移动避免挡住蜡烛
+                    ctx.save();
+                    ctx.shadowColor = '#ffaa33';
+                    ctx.shadowBlur = 25;
+                    ctx.shadowOffsetY = 4;
+                    ctx.font = 'bold 32px "Segoe UI", "Poppins", sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillStyle = '#ffeac2';
+                    ctx.globalAlpha = 0.9;
+                    msgScale += msgScaleDirection;
+                    if (msgScale > 1.07 || msgScale < 0.97) msgScaleDirection *= -1;
+                    ctx.translate(w/2, h/2 - 160);  // 从-130改为-160，向上移动30px
+                    ctx.scale(msgScale, msgScale);
+                    ctx.fillText('HAPPY', 0, -20);
+                    ctx.fillText('BIRTHDAY', 0, 20);
+                    ctx.restore();
+
+                    // to my friend
+                    ctx.save();
+                    ctx.shadowBlur = 12;
+                    ctx.shadowColor = '#f2a65e';
+                    ctx.font = 'italic 20px "Segoe UI", "Poppins", cursive';
+                    ctx.fillStyle = '#ffdb9f';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('to my friend', w/2, h/2 + 30);  // 从+60改为+30，也向上移动
+                    ctx.restore();
+
+                    // 烟花粒子
+                    particles.forEach(p => {
+                        ctx.globalAlpha = p.life * 0.9;
+                        ctx.beginPath();
+                        ctx.fillStyle = p.color;
+                        ctx.shadowColor = p.color;
+                        ctx.shadowBlur = 12;
+                        ctx.arc(p.x, p.y, p.size * 0.6, 0, 2*Math.PI);
+                        ctx.fill();
+                    });
+
+                    // 点击火花
+                    if (clickSpark) {
+                        const age = Date.now() - clickSpark.time;
+                        if (age < 400) {
+                            ctx.save();
+                            ctx.shadowBlur = 40;
+                            ctx.shadowColor = '#ffaa33';
+                            ctx.beginPath();
+                            ctx.arc(clickSpark.x, clickSpark.y, 25 + (400-age)/12, 0, 2*Math.PI);
+                            ctx.fillStyle = '#ffd58c99';
+                            ctx.fill();
+                            ctx.restore();
+                        } else {
+                            clickSpark = null;
+                        }
+                    }
+
+                    // 触摸跟随
+                    if (touchInside) {
+                        ctx.save();
+                        ctx.shadowBlur = 18;
+                        ctx.shadowColor = '#ffaa33';
+                        ctx.fillStyle = '#f5e56b';
+                        ctx.translate(touchX, touchY);
+                        ctx.rotate(Date.now() * 0.01);
+                        for (let i = 0; i < 4; i++) {
+                            const angle = i * Math.PI/2;
+                            const dx = Math.cos(angle) * 14;
+                            const dy = Math.sin(angle) * 14;
+                            if (i === 0) ctx.moveTo(dx, dy);
+                            else ctx.lineTo(dx, dy);
+                        }
+                        ctx.closePath();
+                        ctx.fill();
+                        ctx.restore();
+                    }
                 }
-                oldState = state;
+
+                ctx.shadowBlur = 0;
+                requestAnimationFrame(animate);
             }
-        }, 100);
 
-        init();
-        animate();
+            // 动画循环
+            function animate() {
+                updateStarsRotation();
+                updateSparkles();
+                if (state === 'cake') {
+                    updateParticles();
+                    updateCake();
+                }
+                drawScene();
+            }
 
-    })();
-</script>
+            // 触摸事件
+            function handleTouchStart(e) {
+                e.preventDefault();
+                const rect = canvas.getBoundingClientRect();
+                const touch = e.touches[0];
+                const scaleX = canvas.width / rect.width;
+                const scaleY = canvas.height / rect.height;
+                touchX = (touch.clientX - rect.left) * scaleX;
+                touchY = (touch.clientY - rect.top) * scaleY;
+                touchInside = true;
+            }
+
+            function handleTouchMove(e) {
+                e.preventDefault();
+                const rect = canvas.getBoundingClientRect();
+                const touch = e.touches[0];
+                const scaleX = canvas.width / rect.width;
+                const scaleY = canvas.height / rect.height;
+                touchX = (touch.clientX - rect.left) * scaleX;
+                touchY = (touch.clientY - rect.top) * scaleY;
+            }
+
+            function handleTouchEnd(e) {
+                e.preventDefault();
+                touchInside = false;
+            }
+
+            function handleCanvasClick(e) {
+                e.preventDefault();
+                if (state !== 'cake') return;
+
+                const rect = canvas.getBoundingClientRect();
+                let clientX, clientY;
+                if (e.touches) {
+                    clientX = e.touches[0].clientX;
+                    clientY = e.touches[0].clientY;
+                } else {
+                    clientX = e.clientX;
+                    clientY = e.clientY;
+                }
+                const scaleX = canvas.width / rect.width;
+                const scaleY = canvas.height / rect.height;
+                const canvasX = (clientX - rect.left) * scaleX;
+                const canvasY = (clientY - rect.top) * scaleY;
+
+                for (let i = 0; i < 4; i++) {
+                    setTimeout(() => {
+                        addFirework(canvasX + (Math.random()-0.5)*50, canvasY + (Math.random()-0.5)*50);
+                    }, i * 50);
+                }
+                clickSpark = { x: canvasX, y: canvasY, time: Date.now() };
+            }
+
+            // 统一事件监听
+            canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+            canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+            canvas.addEventListener('touchend', handleTouchEnd);
+            canvas.addEventListener('touchcancel', handleTouchEnd);
+            canvas.addEventListener('mousedown', (e) => {
+                touchInside = true;
+                handleTouchMove(e);
+            });
+            canvas.addEventListener('mousemove', handleTouchMove);
+            canvas.addEventListener('mouseup', () => { touchInside = false; });
+            canvas.addEventListener('mouseleave', () => { touchInside = false; });
+            canvas.addEventListener('click', handleCanvasClick);
+            canvas.addEventListener('touchstart', handleCanvasClick);
+
+            // 初始化
+            function init() {
+                initStars(120);
+                initSparkles(15);
+            }
+
+            // 切换到蛋糕页时放开场烟花
+            let oldState = state;
+            setInterval(() => {
+                if (oldState !== state) {
+                    if (state === 'cake') {
+                        for (let i = 0; i < 6; i++) {
+                            setTimeout(() => {
+                                addFirework(100 + i*40, 200);
+                            }, i * 80);
+                        }
+                        setTimeout(() => {
+                            addFirework(w/2, h/3);
+                        }, 400);
+                    }
+                    oldState = state;
+                }
+            }, 100);
+
+            init();
+            animate();
+
+        })();
+    </script>
 </body>
 </html>
